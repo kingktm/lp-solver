@@ -28,9 +28,9 @@
             <option selected>Minimize</option>
         </select>
         Z = 
-        <input id="coef_x" type="number" step="any" placeholder="coef x" value="-19"> x
-        + <input id="coef_y" type="number" step="any" placeholder="coef y" value="-100"> y
-        + <input id="const" type="number" step="any" placeholder="constant" value="280000">
+        <input id="coef_x" type="number" step="any" placeholder="coef x"> x
+        + <input id="coef_y" type="number" step="any" placeholder="coef y"> y
+        + <input id="const" type="number" step="any" placeholder="constant (optional)">
     </div>
     
     <div class="form-group">
@@ -43,7 +43,7 @@
         <input type="checkbox" id="nonneg" checked> Enforce x ≥ 0, y ≥ 0
     </label>
     
-    <button onclick="solveLP()" style="background:#1976d2; color:white; border:none; border-radius:4px;">Solve & Plot</button>
+    <button onclick="solveLP()" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:12px 24px;">Solve & Plot</button>
     
     <canvas id="plot"></canvas>
     
@@ -68,14 +68,14 @@
             constraintCount++;
             const div = document.createElement('div');
             div.innerHTML = `
-                <input id="a${constraintCount}" type="number" step="any" value="1"> x
-                + <input id="b${constraintCount}" type="number" step="any" value="1"> y
-                <select id="op${constraintCount}">
+                <input id="a${constraintCount}" type="number" step="any" placeholder="coef x">
+                x + <input id="b${constraintCount}" type="number" step="any" placeholder="coef y">
+                y <select id="op${constraintCount}">
                     <option value="<=">≤</option>
                     <option value=">=">≥</option>
                     <option value="=">=</option>
                 </select>
-                <input id="d${constraintCount}" type="number" step="any" value="120">
+                <input id="d${constraintCount}" type="number" step="any" placeholder="constant">
             `;
             document.getElementById('constraints').appendChild(div);
         }
@@ -92,8 +92,8 @@
             const cons = [];
             const nonneg = document.getElementById('nonneg').checked;
             if (nonneg) {
-                cons.push({a: -1, b: 0, c: 0});   // x ≥ 0  →  -x ≤ 0
-                cons.push({a: 0, b: -1, c: 0});   // y ≥ 0  →  -y ≤ 0
+                cons.push({a: -1, b: 0, c: 0});   // -x ≤ 0
+                cons.push({a: 0, b: -1, c: 0});   // -y ≤ 0
             }
             for (let i = 1; i <= constraintCount; i++) {
                 const {a, b, op, d} = parseConstraint(i);
@@ -118,7 +118,6 @@
             const points = [];
             const n = cons.length;
 
-            // Pairwise intersections
             for (let i = 0; i < n; i++) {
                 for (let j = i+1; j < n; j++) {
                     const c1 = cons[i], c2 = cons[j];
@@ -130,24 +129,20 @@
                 }
             }
 
-            // Axis intersections (simple bounding)
             for (const c of cons) {
                 if (Math.abs(c.a) > 1e-8) {
-                    const x = c.c / c.a;
-                    const y = 0;
+                    const x = c.c / c.a; const y = 0;
                     if (isFeasible([x, y], cons)) points.push([x, y]);
                 }
                 if (Math.abs(c.b) > 1e-8) {
-                    const y = c.c / c.b;
-                    const x = 0;
+                    const y = c.c / c.b; const x = 0;
                     if (isFeasible([x, y], cons)) points.push([x, y]);
                 }
             }
 
-            // Remove duplicates
             const unique = [];
             for (const p of points) {
-                const rounded = [Math.round(p[0]*1e4)/1e4, Math.round(p[1]*1e4)/1e4];
+                const rounded = [Math.round(p[0]*10000)/10000, Math.round(p[1]*10000)/10000];
                 if (!unique.some(q => Math.abs(q[0]-rounded[0])<1e-6 && Math.abs(q[1]-rounded[1])<1e-6))
                     unique.push(rounded);
             }
@@ -156,7 +151,7 @@
 
         function solveLP() {
             const cons = getConstraints();
-            if (cons.length === 0) {
+            if (cons.length < 1) {
                 document.getElementById('result').innerHTML = 'Please add at least some constraints.';
                 return;
             }
@@ -186,19 +181,19 @@
 
             const xStr = bestP[0].toFixed(2).replace(/\.?0+$/, '');
             const yStr = bestP[1].toFixed(2).replace(/\.?0+$/, '');
+            const zStr = bestZ.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
             document.getElementById('result').innerHTML = 
-                `Optimal: x = ${xStr}, y = ${yStr}<br>Z = ${bestZ.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}`;
+                `Optimal point: x = ${xStr}, y = ${yStr}<br>Z = ${zStr}`;
 
-            // Plot (simplified version - full plotting logic can be re-added from previous code if needed)
+            // Placeholder plot (you can expand this later)
             ctx.clearRect(0, 0, width, height);
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#333';
-            ctx.fillText('Feasible region & optimal point plotted (detailed plotting coming soon...)', 20, width/2);
-            ctx.fillText(`Optimal: (${xStr}, ${yStr})`, 20, width/2 + 30);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#444';
+            ctx.fillText('Feasible region & solution point', width/2 - 140, height/2 - 20);
+            ctx.fillText(`Optimal: (${xStr}, ${yStr})`, width/2 - 100, height/2 + 20);
         }
 
-        // Optional: add 2–3 example constraints to start
-        addConstraint(); addConstraint(); addConstraint();
+        // No auto-adding constraints → completely empty on load/refresh
     </script>
 </body>
 </html>
