@@ -53,16 +53,16 @@
         let constraintCount = 0;
         const canvas = document.getElementById('plot');
         const ctx = canvas.getContext('2d');
-        let width = 600, height = 600;
-        
-        function resizeCanvas() {
+        let w = 700, h = 700;
+
+        function resize() {
             const size = Math.min(window.innerWidth - 40, 700);
             canvas.width = size;
             canvas.height = size;
-            width = height = size;
+            w = h = size;
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        window.addEventListener('resize', resize);
+        resize();
 
         function addConstraint() {
             constraintCount++;
@@ -80,86 +80,82 @@
             document.getElementById('constraints').appendChild(div);
         }
 
-        function parseConstraint(i) {
-            const a = parseFloat(document.getElementById(`a${i}`).value) || 0;
-            const b = parseFloat(document.getElementById(`b${i}`).value) || 0;
-            const op = document.getElementById(`op${i}`).value;
-            const d = parseFloat(document.getElementById(`d${i}`).value) || 0;
-            return {a, b, op, d};
-        }
-
         function getConstraints() {
             const cons = [];
-            const nonneg = document.getElementById('nonneg').checked;
-            if (nonneg) {
-                cons.push({a: -1, b: 0, c: 0});   // -x ≤ 0
-                cons.push({a: 0, b: -1, c: 0});   // -y ≤ 0
+            if (document.getElementById('nonneg').checked) {
+                cons.push({a: -1, b: 0, c: 0, label: 'x ≥ 0'});
+                cons.push({a: 0, b: -1, c: 0, label: 'y ≥ 0'});
             }
             for (let i = 1; i <= constraintCount; i++) {
-                const {a, b, op, d} = parseConstraint(i);
-                if (op === '<=') cons.push({a, b, c: d});
-                else if (op === '>=') cons.push({a: -a, b: -b, c: -d});
+                const a = parseFloat(document.getElementById(`a${i}`).value) || 0;
+                const b = parseFloat(document.getElementById(`b${i}`).value) || 0;
+                const op = document.getElementById(`op${i}`).value;
+                const d = parseFloat(document.getElementById(`d${i}`).value) || 0;
+                const label = `${a}x + ${b}y ${op} ${d}`;
+                if (op === '<=') cons.push({a, b, c: d, label});
+                else if (op === '>=') cons.push({a: -a, b: -b, c: -d, label});
                 else if (op === '=') {
-                    cons.push({a, b, c: d});
-                    cons.push({a: -a, b: -b, c: -d});
+                    cons.push({a, b, c: d, label});
+                    cons.push({a: -a, b: -b, c: -d, label: ''});
                 }
             }
             return cons;
         }
 
-        function isFeasible(p, cons) {
-            for (const c of cons) {
-                if (c.a * p[0] + c.b * p[1] > c.c + 1e-8) return false;
-            }
-            return true;
+        function pointFeasible(p, cons) {
+            return cons.every(c => c.a * p[0] + c.b * p[1] <= c.c + 1e-8);
         }
 
         function findCorners(cons) {
-            const points = [];
+            const pts = [];
             const n = cons.length;
 
+            // Intersections of constraint pairs
             for (let i = 0; i < n; i++) {
-                for (let j = i+1; j < n; j++) {
+                for (let j = i + 1; j < n; j++) {
                     const c1 = cons[i], c2 = cons[j];
                     const det = c1.a * c2.b - c2.a * c1.b;
                     if (Math.abs(det) < 1e-8) continue;
                     const x = (c1.c * c2.b - c2.c * c1.b) / det;
                     const y = (c2.c * c1.a - c1.c * c2.a) / det;
-                    if (isFeasible([x, y], cons)) points.push([x, y]);
+                    if (pointFeasible([x, y], cons)) pts.push([x, y]);
                 }
             }
 
+            // Axis intersections
             for (const c of cons) {
                 if (Math.abs(c.a) > 1e-8) {
-                    const x = c.c / c.a; const y = 0;
-                    if (isFeasible([x, y], cons)) points.push([x, y]);
+                    const x = c.c / c.a;
+                    if (pointFeasible([x, 0], cons)) pts.push([x, 0]);
                 }
                 if (Math.abs(c.b) > 1e-8) {
-                    const y = c.c / c.b; const x = 0;
-                    if (isFeasible([x, y], cons)) points.push([x, y]);
+                    const y = c.c / c.b;
+                    if (pointFeasible([0, y], cons)) pts.push([0, y]);
                 }
             }
 
+            // Deduplicate
             const unique = [];
-            for (const p of points) {
-                const rounded = [Math.round(p[0]*10000)/10000, Math.round(p[1]*10000)/10000];
-                if (!unique.some(q => Math.abs(q[0]-rounded[0])<1e-6 && Math.abs(q[1]-rounded[1])<1e-6))
-                    unique.push(rounded);
-            }
+            pts.forEach(p => {
+                const rx = Math.round(p[0] * 10000) / 10000;
+                const ry = Math.round(p[1] * 10000) / 10000;
+                if (!unique.some(q => Math.abs(q[0] - rx) < 1e-6 && Math.abs(q[1] - ry) < 1e-6))
+                    unique.push([rx, ry]);
+            });
             return unique;
         }
 
         function solveLP() {
             const cons = getConstraints();
-            if (cons.length < 1) {
-                document.getElementById('result').innerHTML = 'Please add at least some constraints.';
+            if (cons.length === 0) {
+                document.getElementById('result').innerHTML = 'Add at least one constraint.';
                 return;
             }
 
             const corners = findCorners(cons);
             if (corners.length === 0) {
-                document.getElementById('result').innerHTML = 'No feasible region found.';
-                ctx.clearRect(0, 0, width, height);
+                document.getElementById('result').innerHTML = 'No feasible region.';
+                ctx.clearRect(0, 0, w, h);
                 return;
             }
 
@@ -170,30 +166,118 @@
 
             let bestZ = isMax ? -Infinity : Infinity;
             let bestP = null;
-
-            for (const [x, y] of corners) {
+            corners.forEach(([x, y]) => {
                 const z = a * x + b * y + k;
                 if ((isMax && z > bestZ) || (!isMax && z < bestZ)) {
                     bestZ = z;
                     bestP = [x, y];
                 }
+            });
+
+            const xFmt = bestP[0].toFixed(2).replace(/\.?0+$/, '');
+            const yFmt = bestP[1].toFixed(2).replace(/\.?0+$/, '');
+            const zFmt = bestZ.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+            document.getElementById('result').innerHTML = `Optimal: x = ${xFmt}, y = ${yFmt}<br>Z = ${zFmt}`;
+
+            // ────────────────────────────────────────────────
+            //               Plotting starts here
+            // ────────────────────────────────────────────────
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Find bounds with padding
+            let minX = Math.min(...corners.map(p => p[0]));
+            let maxX = Math.max(...corners.map(p => p[0]));
+            let minY = Math.min(...corners.map(p => p[1]));
+            let maxY = Math.max(...corners.map(p => p[1]));
+
+            const padX = (maxX - minX) * 0.15 || 1;
+            const padY = (maxY - minY) * 0.15 || 1;
+            minX -= padX; maxX += padX;
+            minY -= padY; maxY += padY;
+
+            if (isNaN(minX)) { minX = -10; maxX = 10; minY = -10; maxY = 10; }
+
+            const sx = x => (x - minX) / (maxX - minX) * w;
+            const sy = y => h - (y - minY) / (maxY - minY) * h;
+
+            // Axes
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            if (minX <= 0 && maxX >= 0) {
+                ctx.beginPath(); ctx.moveTo(sx(0), sy(minY)); ctx.lineTo(sx(0), sy(maxY)); ctx.stroke();
+            }
+            if (minY <= 0 && maxY >= 0) {
+                ctx.beginPath(); ctx.moveTo(sx(minX), sy(0)); ctx.lineTo(sx(maxX), sy(0)); ctx.stroke();
             }
 
-            const xStr = bestP[0].toFixed(2).replace(/\.?0+$/, '');
-            const yStr = bestP[1].toFixed(2).replace(/\.?0+$/, '');
-            const zStr = bestZ.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
-            document.getElementById('result').innerHTML = 
-                `Optimal point: x = ${xStr}, y = ${yStr}<br>Z = ${zStr}`;
+            // Constraint lines
+            cons.forEach(c => {
+                if (!c.label) return;
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash(c.label.includes('≥') || c.label.includes('=') ? [4, 3] : []);
+                ctx.beginPath();
+                if (Math.abs(c.b) < 1e-8) {
+                    const xx = c.c / c.a;
+                    ctx.moveTo(sx(xx), sy(minY));
+                    ctx.lineTo(sx(xx), sy(maxY));
+                } else {
+                    const y1 = (c.c - c.a * minX) / c.b;
+                    const y2 = (c.c - c.a * maxX) / c.b;
+                    ctx.moveTo(sx(minX), sy(y1));
+                    ctx.lineTo(sx(maxX), sy(y2));
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
 
-            // Placeholder plot (you can expand this later)
-            ctx.clearRect(0, 0, width, height);
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#444';
-            ctx.fillText('Feasible region & solution point', width/2 - 140, height/2 - 20);
-            ctx.fillText(`Optimal: (${xStr}, ${yStr})`, width/2 - 100, height/2 + 20);
+            // Feasible region polygon
+            if (corners.length >= 3) {
+                // Sort corners counterclockwise
+                const cx = corners.reduce((s, p) => s + p[0], 0) / corners.length;
+                const cy = corners.reduce((s, p) => s + p[1], 0) / corners.length;
+                corners.sort((p1, p2) => Math.atan2(p1[1]-cy, p1[0]-cx) - Math.atan2(p2[1]-cy, p2[0]-cx));
+
+                ctx.beginPath();
+                ctx.moveTo(sx(corners[0][0]), sy(corners[0][1]));
+                for (let i = 1; i < corners.length; i++) {
+                    ctx.lineTo(sx(corners[i][0]), sy(corners[i][1]));
+                }
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(100, 180, 255, 0.25)';
+                ctx.fill();
+                ctx.strokeStyle = '#1976d2';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Corner points
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            corners.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(sx(x), sy(y), 4, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillText(`(${x.toFixed(1)}, ${y.toFixed(1)})`, sx(x)+6, sy(y)-6);
+            });
+
+            // Optimal point
+            if (bestP) {
+                ctx.fillStyle = '#d32f2f';
+                ctx.beginPath();
+                ctx.arc(sx(bestP[0]), sy(bestP[1]), 7, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Title
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText(`${isMax ? 'Max' : 'Min'} Z = ${zFmt}`, 20, 30);
         }
-
-        // No auto-adding constraints → completely empty on load/refresh
     </script>
 </body>
 </html>
