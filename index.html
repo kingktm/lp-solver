@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Programming Graphical Solver</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        input[type="number"] { width: 60px; }
+        #constraints { margin-bottom: 10px; }
+        canvas { border: 1px solid #ccc; margin-top: 20px; }
+        #result { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Linear Programming Graphical Solver (2 Variables)</h2>
+    
+    <div>
+        <label>Objective Function:</label>
+        <select id="opt_type">
+            <option>Maximize</option>
+            <option>Minimize</option>
+        </select>
+        Z = <input id="coef_x" type="number" placeholder="coef x" value="4">
+        x + <input id="coef_y" type="number" placeholder="coef y" value="5">
+    </div>
+    
+    <div>
+        <label>Constraints (non-negativity x >= 0, y >= 0 is default):</label>
+        <div id="constraints"></div>
+        <button onclick="addConstraint()">Add Constraint</button>
+    </div>
+    
+    <button onclick="solveLP()">Solve and Plot</button>
+    
+    <canvas id="plot" width="600" height="600"></canvas>
+    
+    <div id="result"></div>
+    
+    <script>
+        let constraintCount = 0;
+        let constraints = [];
+        let isMax, obj_a, obj_b;
+        const canvas = document.getElementById('plot');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        function addConstraint() {
+            constraintCount++;
+            let div = document.createElement('div');
+            div.innerHTML = `
+                <input id="a${constraintCount}" type="number" placeholder="coef x" value="1">
+                x + <input id="b${constraintCount}" type="number" placeholder="coef y" value="1">
+                y <select id="op${constraintCount}">
+                    <option value="<="><=</option>
+                    <option value=">=">>=</option>
+                </select> <input id="d${constraintCount}" type="number" placeholder="constant" value="120">
+            `;
+            document.getElementById('constraints').appendChild(div);
+        }
+        
+        function addInternal(a, b, op, d, label) {
+            const sign = (op === '<=') ? 1 : -1;
+            constraints.push({a: sign * a, b: sign * b, c: sign * d, label});
+        }
+        
+        function getFeasibleCorners() {
+            let points = [];
+            const n = constraints.length;
+            
+            // Intersections of pairs
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    const a1 = constraints[i].a, b1 = constraints[i].b, c1 = constraints[i].c;
+                    const a2 = constraints[j].a, b2 = constraints[j].b, c2 = constraints[j].c;
+                    const det = a1 * b2 - a2 * b1;
+                    if (Math.abs(det) < 1e-6) continue;
+                    const x = (c1 * b2 - c2 * b1) / det;
+                    const y = (a1 * c2 - a2 * c1) / det;
+                    points.push([x, y]);
+                }
+            }
+            
+            // Intersections with axes
+            for (let i = 0; i < n; i++) {
+                const a = constraints[i].a, b = constraints[i].b, c = constraints[i].c;
+                if (Math.abs(a) > 1e-6) {
+                    const x = c / a;
+                    points.push([x, 0]);
+                }
+                if (Math.abs(b) > 1e-6) {
+                    const y = c / b;
+                    points.push([0, y]);
+                }
+            }
+            points.push([0, 0]);
+            
+            // Remove duplicates
+            let unique = [];
+            for (let p of points) {
+                p[0] = Math.round(p[0] * 10000) / 10000;
+                p[1] = Math.round(p[1] * 10000) / 10000;
+                let isNew = true;
+                for (let u of unique) {
+                    if (Math.abs(u[0] - p[0]) < 1e-6 && Math.abs(u[1] - p[1]) < 1e-6) {
+                        isNew = false;
+                        break;
+                    }
+                }
+                if (isNew) unique.push(p);
+            }
+            
+            // Filter feasible
+            let feasible = [];
+            for (let p of unique) {
+                let ok = true;
+                for (let con of constraints) {
+                    if (con.a * p[0] + con.b * p[1] > con.c + 1e-6) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok && p[0] >= -1e-6 && p[1] >= -1e-6) feasible.push(p);
+            }
+            return feasible;
+        }
+        
+        function solveLP() {
+            constraints = [];
+            
+            // Add non-negativity (no labels for axes)
+            addInternal(1, 0, '>=', 0, '');
+            addInternal(0, 1, '>=', 0, '');
+            
+            // Add user constraints
+            for (let i = 1; i <= constraintCount; i++) {
+                const a = parseFloat(document.getElementById(`a${i}`).value || 0);
+                const b = parseFloat(document.getElementById(`b${i}`).value || 0);
+                const op = document.getElementById(`op${i}`).value;
+                const d = parseFloat(document.getElementById(`d${i}`).value || 0);
+                const label = `${a}x + ${b}y = ${d}`;
+                addInternal(a, b, op, d, label);
+            }
+            
+            // Objective
+            const optType = document.getElementById('opt_type').value;
+            isMax = optType === 'Maximize';
+            obj_a = parseFloat(document.getElementById('coef_x').value || 0);
+            obj_b = parseFloat(document.getElementById('coef_y').value || 0);
+            
+            const corners = getFeasibleCorners();
+            
+            if (corners.length === 0) {
+                document.getElementById('result').innerHTML = 'No feasible region.';
+                return;
+            }
+            
+            // Find optimal
+            let bestZ = isMax ? -Infinity : Infinity;
+            let bestP = null;
+            for (let p of corners) {
+                const z = obj_a * p[0] + obj_b * p[1];
+                if ((isMax && z > bestZ) || (!isMax && z < bestZ)) {
+                    bestZ = z;
+                    bestP = p;
+                }
+            }
+            
+            // Output result
+            document.getElementById('result').innerHTML = `Optimal Result: x=${bestP[0].toFixed(0)}, y=${bestP[1].toFixed(0)}, Z=${bestZ.toFixed(0)}`;
+            
+            // Plot
+            ctx.clearRect(0, 0, width, height);
+            
+            // Compute bounds
+            let maxX = 10, maxY = 10;
+            for (let p of corners) {
+                maxX = Math.max(maxX, p[0]);
+                maxY = Math.max(maxY, p[1]);
+            }
+            maxX = Math.max(10, maxX * 1.2);
+            maxY = Math.max(10, maxY * 1.2);
+            
+            function toScreenX(x) { return (x / maxX) * width; }
+            function toScreenY(y) { return height - (y / maxY) * height; }
+            
+            // Draw axes
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(toScreenX(0), toScreenY(0));
+            ctx.lineTo(toScreenX(maxX), toScreenY(0));
+            ctx.moveTo(toScreenX(0), toScreenY(0));
+            ctx.lineTo(toScreenX(0), toScreenY(maxY));
+            ctx.stroke();
+            
+            // Sort corners for polygon (convex hull order)
+            let cx = 0, cy = 0;
+            for (let p of corners) { cx += p[0]; cy += p[1]; }
+            cx /= corners.length; cy /= corners.length;
+            corners.sort((p1, p2) => Math.atan2(p1[1] - cy, p1[0] - cx) - Math.atan2(p2[1] - cy, p2[0] - cx));
+            
+            // Draw feasible region
+            if (corners.length > 2) {
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(corners[0][0]), toScreenY(corners[0][1]));
+                for (let i = 1; i < corners.length; i++) {
+                    ctx.lineTo(toScreenX(corners[i][0]), toScreenY(corners[i][1]));
+                }
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+                ctx.fill();
+            }
+            
+            // Draw constraint lines
+            for (let con of constraints) {
+                if (Math.abs(con.b) < 1e-6) {
+                    // Vertical line
+                    const xx = con.c / con.a;
+                    if (xx < 0 || xx > maxX) continue;
+                    ctx.setLineDash([5, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(toScreenX(xx), toScreenY(0));
+                    ctx.lineTo(toScreenX(xx), toScreenY(maxY));
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    if (con.label) {
+                        ctx.fillText(con.label, toScreenX(xx) + 5, toScreenY(maxY / 2));
+                    }
+                } else {
+                    // Non-vertical
+                    ctx.setLineDash([]);
+                    const yleft = (con.c - con.a * 0) / con.b;
+                    const yright = (con.c - con.a * maxX) / con.b;
+                    ctx.beginPath();
+                    ctx.moveTo(toScreenX(0), toScreenY(yleft));
+                    ctx.lineTo(toScreenX(maxX), toScreenY(yright));
+                    ctx.stroke();
+                    if (con.label) {
+                        ctx.fillText(con.label, toScreenX(maxX) - 100, toScreenY(yright) + (yright > maxY / 2 ? -5 : 10));
+                    }
+                }
+            }
+            
+            // Mark corner points
+            ctx.fillStyle = 'black';
+            for (let p of corners) {
+                ctx.beginPath();
+                ctx.arc(toScreenX(p[0]), toScreenY(p[1]), 3, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillText(`(${p[0].toFixed(0)}, ${p[1].toFixed(0)})`, toScreenX(p[0]) + 5, toScreenY(p[1]) - 5);
+            }
+            
+            // Title
+            ctx.fillText(`Optimal Point: (${bestP[0].toFixed(0)}, ${bestP[1].toFixed(0)}) | ${optType} Z: ${bestZ.toFixed(0)}`, 10, 20);
+        }
+        
+        // Add initial constraints for example
+        addConstraint(); // x + y <= 120
+        addConstraint(); // Change to -1, -1, >=, -80? Wait, user inputs values
+        // For example, set second: but better user edit
+    </script>
+</body>
+</html>
