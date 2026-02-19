@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,10 +27,12 @@
     </div>
     
     <div>
-        <label>Constraints (non-negativity x >= 0, y >= 0 is default):</label>
+        <label>Constraints:</label>
         <div id="constraints"></div>
         <button onclick="addConstraint()">Add Constraint</button>
     </div>
+    
+    <label><input type="checkbox" id="nonneg" checked> Enforce non-negativity (x ≥ 0, y ≥ 0)</label>
     
     <button onclick="solveLP()">Solve and Plot</button>
     
@@ -55,14 +58,20 @@
                 y <select id="op${constraintCount}">
                     <option value="<="><=</option>
                     <option value=">=">>=</option>
+                    <option value="=">=</option>
                 </select> <input id="d${constraintCount}" type="number" placeholder="constant" value="120">
             `;
             document.getElementById('constraints').appendChild(div);
         }
         
         function addInternal(a, b, op, d, label) {
-            const sign = (op === '<=') ? 1 : -1;
-            constraints.push({a: sign * a, b: sign * b, c: sign * d, label});
+            if (op === '=') {
+                constraints.push({a: a, b: b, c: d, label});
+                constraints.push({a: -a, b: -b, c: -d, label: ''});
+            } else {
+                const sign = (op === '<=') ? 1 : -1;
+                constraints.push({a: sign * a, b: sign * b, c: sign * d, label});
+            }
         }
         
         function getFeasibleCorners() {
@@ -82,7 +91,7 @@
                 }
             }
             
-            // Intersections with axes
+            // Intersections with axes (y=0)
             for (let i = 0; i < n; i++) {
                 const a = constraints[i].a, b = constraints[i].b, c = constraints[i].c;
                 if (Math.abs(a) > 1e-6) {
@@ -112,6 +121,7 @@
             }
             
             // Filter feasible
+            const nonneg = document.getElementById('nonneg').checked;
             let feasible = [];
             for (let p of unique) {
                 let ok = true;
@@ -121,7 +131,13 @@
                         break;
                     }
                 }
-                if (ok && p[0] >= -1e-6 && p[1] >= -1e-6) feasible.push(p);
+                if (ok) {
+                    if (nonneg) {
+                        if (p[0] >= -1e-6 && p[1] >= -1e-6) feasible.push(p);
+                    } else {
+                        feasible.push(p);
+                    }
+                }
             }
             return feasible;
         }
@@ -129,9 +145,11 @@
         function solveLP() {
             constraints = [];
             
-            // Add non-negativity (no labels for axes)
-            addInternal(1, 0, '>=', 0, '');
-            addInternal(0, 1, '>=', 0, '');
+            const nonneg = document.getElementById('nonneg').checked;
+            if (nonneg) {
+                addInternal(1, 0, '>=', 0, '');
+                addInternal(0, 1, '>=', 0, '');
+            }
             
             // Add user constraints
             for (let i = 1; i <= constraintCount; i++) {
@@ -153,46 +171,82 @@
             
             if (corners.length === 0) {
                 document.getElementById('result').innerHTML = 'No feasible region.';
+                ctx.clearRect(0, 0, width, height);
                 return;
             }
             
-            // Find optimal
-            let bestZ = isMax ? -Infinity : Infinity;
-            let bestP = null;
-            for (let p of corners) {
-                const z = obj_a * p[0] + obj_b * p[1];
-                if ((isMax && z > bestZ) || (!isMax && z < bestZ)) {
-                    bestZ = z;
-                    bestP = p;
-                }
+            // Detect unbounded
+            const d_a = isMax ? obj_a : -obj_a;
+            const d_b = isMax ? obj_b : -obj_b;
+            let max_dot = -Infinity;
+            for (let con of constraints) {
+                const dot = con.a * d_a + con.b * d_b;
+                max_dot = Math.max(max_dot, dot);
             }
-            
-            // Output result
-            document.getElementById('result').innerHTML = `Optimal Result: x=${bestP[0].toFixed(0)}, y=${bestP[1].toFixed(0)}, Z=${bestZ.toFixed(0)}`;
+            if (max_dot <= 1e-6) {
+                document.getElementById('result').innerHTML = `Unbounded ${isMax ? 'maximum' : 'minimum'}.`;
+                // Still plot the feasible region
+            } else {
+                // Find optimal
+                let bestZ = isMax ? -Infinity : Infinity;
+                let bestP = null;
+                for (let p of corners) {
+                    const z = obj_a * p[0] + obj_b * p[1];
+                    if ((isMax && z > bestZ) || (!isMax && z < bestZ)) {
+                        bestZ = z;
+                        bestP = p;
+                    }
+                }
+                
+                // Output result
+                document.getElementById('result').innerHTML = `Optimal Result: x=${bestP[0].toFixed(0)}, y=${bestP[1].toFixed(0)}, Z=${bestZ.toFixed(0)}`;
+            }
             
             // Plot
             ctx.clearRect(0, 0, width, height);
             
             // Compute bounds
-            let maxX = 10, maxY = 10;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             for (let p of corners) {
+                minX = Math.min(minX, p[0]);
                 maxX = Math.max(maxX, p[0]);
+                minY = Math.min(minY, p[1]);
                 maxY = Math.max(maxY, p[1]);
             }
-            maxX = Math.max(10, maxX * 1.2);
-            maxY = Math.max(10, maxY * 1.2);
+            if (nonneg) {
+                minX = Math.min(minX, 0);
+                minY = Math.min(minY, 0);
+            }
+            let rangeX = maxX - minX;
+            let rangeY = maxY - minY;
+            if (rangeX < 1) rangeX = 1;
+            if (rangeY < 1) rangeY = 1;
+            minX -= rangeX * 0.1;
+            maxX += rangeX * 0.1;
+            minY -= rangeY * 0.1;
+            maxY += rangeY * 0.1;
+            if (isNaN(minX) || minX === Infinity) {
+                minX = -10; maxX = 10; minY = -10; maxY = 10;
+            }
             
-            function toScreenX(x) { return (x / maxX) * width; }
-            function toScreenY(y) { return height - (y / maxY) * height; }
+            function toScreenX(x) { return ((x - minX) / (maxX - minX)) * width; }
+            function toScreenY(y) { return height - ((y - minY) / (maxY - minY)) * height; }
             
-            // Draw axes
+            // Draw axes if 0 in range
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
+            const sx0 = toScreenX(0), sy0 = toScreenY(0);
+            const hasX0 = minX <= 0 && maxX >= 0;
+            const hasY0 = minY <= 0 && maxY >= 0;
             ctx.beginPath();
-            ctx.moveTo(toScreenX(0), toScreenY(0));
-            ctx.lineTo(toScreenX(maxX), toScreenY(0));
-            ctx.moveTo(toScreenX(0), toScreenY(0));
-            ctx.lineTo(toScreenX(0), toScreenY(maxY));
+            if (hasY0) {
+                ctx.moveTo(sx0, toScreenY(minY));
+                ctx.lineTo(sx0, toScreenY(maxY));
+            }
+            if (hasX0) {
+                ctx.moveTo(toScreenX(minX), sy0);
+                ctx.lineTo(toScreenX(maxX), sy0);
+            }
             ctx.stroke();
             
             // Sort corners for polygon (convex hull order)
@@ -215,30 +269,30 @@
             
             // Draw constraint lines
             for (let con of constraints) {
+                if (!con.label) continue; // Skip duplicates for =
                 if (Math.abs(con.b) < 1e-6) {
-                    // Vertical line
+                    if (Math.abs(con.a) < 1e-6) continue;
                     const xx = con.c / con.a;
-                    if (xx < 0 || xx > maxX) continue;
+                    if (xx < minX || xx > maxX) continue;
                     ctx.setLineDash([5, 3]);
                     ctx.beginPath();
-                    ctx.moveTo(toScreenX(xx), toScreenY(0));
+                    ctx.moveTo(toScreenX(xx), toScreenY(minY));
                     ctx.lineTo(toScreenX(xx), toScreenY(maxY));
                     ctx.stroke();
                     ctx.setLineDash([]);
                     if (con.label) {
-                        ctx.fillText(con.label, toScreenX(xx) + 5, toScreenY(maxY / 2));
+                        ctx.fillText(con.label, toScreenX(xx) + 5, toScreenY((minY + maxY) / 2));
                     }
                 } else {
-                    // Non-vertical
                     ctx.setLineDash([]);
-                    const yleft = (con.c - con.a * 0) / con.b;
-                    const yright = (con.c - con.a * maxX) / con.b;
                     ctx.beginPath();
-                    ctx.moveTo(toScreenX(0), toScreenY(yleft));
+                    let yleft = (con.c - con.a * minX) / con.b;
+                    let yright = (con.c - con.a * maxX) / con.b;
+                    ctx.moveTo(toScreenX(minX), toScreenY(yleft));
                     ctx.lineTo(toScreenX(maxX), toScreenY(yright));
                     ctx.stroke();
                     if (con.label) {
-                        ctx.fillText(con.label, toScreenX(maxX) - 100, toScreenY(yright) + (yright > maxY / 2 ? -5 : 10));
+                        ctx.fillText(con.label, toScreenX(maxX) - 100, toScreenY(yright) + (yright > (minY + maxY) / 2 ? -5 : 10));
                     }
                 }
             }
@@ -251,15 +305,12 @@
                 ctx.fill();
                 ctx.fillText(`(${p[0].toFixed(0)}, ${p[1].toFixed(0)})`, toScreenX(p[0]) + 5, toScreenY(p[1]) - 5);
             }
-            
-            // Title
-            ctx.fillText(`Optimal Point: (${bestP[0].toFixed(0)}, ${bestP[1].toFixed(0)}) | ${optType} Z: ${bestZ.toFixed(0)}`, 10, 20);
         }
         
         // Add initial constraints for example
         addConstraint(); // x + y <= 120
-        addConstraint(); // Change to -1, -1, >=, -80? Wait, user inputs values
-        // For example, set second: but better user edit
+        addConstraint(); // x + y >= 80, etc. - user can edit
     </script>
 </body>
 </html>
+```
