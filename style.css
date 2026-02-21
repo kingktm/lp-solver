@@ -5,74 +5,84 @@
 body {
     font-family: Arial, sans-serif;
     margin: 0;
-    padding: 12px;
-    line-height: 1.4;
+    padding: 10px;
+    line-height: 1.35;
     background: #f9f9f9;
 }
 
 h2 {
-    margin-top: 0;
+    margin: 8px 0 16px;
     color: #333;
-    font-size: 1.4em;
+    font-size: 1.35em;
     text-align: center;
 }
 
 .form-group {
-    margin: 16px 0;
+    margin: 12px 0;
 }
 
 label {
     font-weight: 600;
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    font-size: 0.95em;
 }
 
-/* --- Global Input Tightening --- */
+/* ── Very compact global inputs ── */
 input[type="number"],
 select {
-    padding: 4px 2px;
+    padding: 4px 4px;
     margin: 0 1px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 0.9em;
+    font-size: 0.88em;
     text-align: center;
+    height: 28px;
 }
 
-/* --- Objective Function Row --- */
+/* ── Objective row ── force single line, very tight */
 .objective-row {
     display: flex;
-    flex-wrap: nowrap;      /* Strict single line */
+    flex-wrap: nowrap;
     align-items: center;
     gap: 2px;
-    overflow-x: auto;       /* Scrollable if too wide */
-    padding: 4px 0;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 4px 2px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 6px;
 }
 
 .objective-row select {
-    width: 82px;            /* Fits "Minimize/Maximize" */
+    width: 78px;           /* Maximize / Minimize */
     flex: 0 0 auto;
 }
 
 .objective-row input[type="number"] {
-    width: 42px;            /* Very compact for coefficients */
+    width: 38px;           /* coef x, coef y, constant */
     flex: 0 0 auto;
 }
 
-.objective-row span {
-    white-space: nowrap;
-    font-size: 0.9em;
-    color: #444;
+.objective-row .const-group input {
+    width: 58px;           /* slightly more room for constant term */
 }
 
-/* --- Subjective Functions (Constraints) --- */
+.objective-row span {
+    font-size: 0.9em;
+    color: #555;
+    margin: 0 1px;
+    white-space: nowrap;
+}
+
+/* ── Each constraint row ── single line, scrollable if needed */
 #constraints div {
     display: flex;
-    flex-wrap: nowrap;      /* Strict single line */
+    flex-wrap: nowrap;
     align-items: center;
     gap: 3px;
     margin: 8px 0;
-    padding: 6px;
+    padding: 6px 8px;
     background: #fff;
     border: 1px solid #eee;
     border-radius: 6px;
@@ -81,62 +91,62 @@ select {
 }
 
 #constraints div input[type="number"] {
-    width: 40px;            /* Narrow for x and y coefficients */
+    width: 38px;           /* coef x, coef y */
     flex: 0 0 auto;
 }
 
 #constraints div select {
-    width: 40px;            /* Narrow for ≤, ≥, = */
+    width: 36px;           /* ≤  ≥  =  */
     flex: 0 0 auto;
     font-weight: bold;
+    padding: 4px 2px;
 }
 
-/* Make the constant (c) slightly wider for larger numbers */
 #constraints div input:last-of-type {
-    width: 50px;
+    width: 58px;           /* rightmost constant – most space */
 }
 
-/* --- Action Buttons --- */
+/* ── Buttons ── */
 .action-buttons {
     display: flex;
     gap: 10px;
-    margin: 20px 0;
+    margin: 16px 0;
 }
 
 button {
-    padding: 10px;
+    padding: 10px 14px;
     border: none;
     border-radius: 6px;
-    font-size: 0.95em;
+    font-size: 0.92em;
     font-weight: bold;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: all 0.15s;
 }
 
 button:active {
-    opacity: 0.7;
+    transform: scale(0.97);
 }
 
 #add-constraint-btn {
     background: #4caf50;
     color: white;
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .solve-btn {
     background: #1976d2;
     color: white;
-    flex: 2;
+    flex: 3;
 }
 
 .clear-btn {
     background: #e53935;
     color: white;
-    flex: 1;
+    flex: 2;
 }
 
-/* --- Visualization --- */
+/* ── Result & Canvas ── */
 canvas {
     border: 1px solid #ddd;
     background: white;
@@ -144,28 +154,61 @@ canvas {
     display: block;
     width: 100%;
     max-width: 700px;
-    height: auto;
     aspect-ratio: 1 / 1;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
 }
 
 #result {
-    margin: 20px 0;
-    padding: 10px;
-    background: #fff;
+    margin: 16px 0;
+    padding: 10px 12px;
+    background: #fffef0;
     border-left: 4px solid #d32f2f;
     font-weight: bold;
-    font-size: 1.1em;
-    color: #d32f2f;
+    font-size: 1.05em;
+    color: #b71c1c;
+    min-height: 2.4em;
 }
 
-/* Scrollbar styling for a cleaner look */
-.objective-row::-webkit-scrollbar, 
+/* ── Tiny scrollbars ── */
+.objective-row::-webkit-scrollbar,
 #constraints div::-webkit-scrollbar {
     height: 3px;
 }
-.objective-row::-webkit-scrollbar-thumb, 
+
+.objective-row::-webkit-scrollbar-thumb,
 #constraints div::-webkit-scrollbar-thumb {
-    background: #ddd;
+    background: #ccc;
+    border-radius: 3px;
+}
+
+/* ── Extra small screens (< 360px) ── */
+@media (max-width: 360px) {
+    input[type="number"],
+    select {
+        font-size: 0.82em;
+        padding: 3px 3px;
+    }
+
+    .objective-row input[type="number"] {
+        width: 36px;
+    }
+    .objective-row .const-group input {
+        width: 54px;
+    }
+
+    #constraints div input[type="number"] {
+        width: 36px;
+    }
+    #constraints div select {
+        width: 34px;
+    }
+    #constraints div input:last-of-type {
+        width: 54px;
+    }
+
+    button {
+        padding: 9px 12px;
+        font-size: 0.88em;
+    }
 }
