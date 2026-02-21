@@ -13,6 +13,8 @@ body {
 h2 {
     margin-top: 0;
     color: #333;
+    font-size: 1.4em;
+    text-align: center;
 }
 
 .form-group {
@@ -25,108 +27,145 @@ label {
     margin-bottom: 6px;
 }
 
+/* --- Global Input Tightening --- */
 input[type="number"],
 select {
-    padding: 6px 8px;
-    margin: 2px 4px;
+    padding: 4px 2px;
+    margin: 0 1px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 1em;
+    font-size: 0.9em;
+    text-align: center;
 }
 
-/* --- Objective Function: Forced Single Line --- */
+/* --- Objective Function Row --- */
 .objective-row {
     display: flex;
-    flex-wrap: nowrap;      /* Prevents wrapping to second line */
-    overflow-x: auto;       /* Allows sliding on very small screens */
+    flex-wrap: nowrap;      /* Strict single line */
     align-items: center;
-    gap: 4px;
-    margin-top: 8px;
-    padding-bottom: 5px;    /* Space for scrollbar */
+    gap: 2px;
+    overflow-x: auto;       /* Scrollable if too wide */
+    padding: 4px 0;
     -webkit-overflow-scrolling: touch;
 }
 
-.objective-row select,
+.objective-row select {
+    width: 82px;            /* Fits "Minimize/Maximize" */
+    flex: 0 0 auto;
+}
+
 .objective-row input[type="number"] {
-    flex: 0 0 auto;         /* Prevents inputs from shrinking */
-    width: 60px;
+    width: 42px;            /* Very compact for coefficients */
+    flex: 0 0 auto;
 }
 
 .objective-row span {
     white-space: nowrap;
-    color: #555;
+    font-size: 0.9em;
+    color: #444;
 }
 
-/* --- Subjective Functions (Constraints): Forced Single Line --- */
+/* --- Subjective Functions (Constraints) --- */
 #constraints div {
     display: flex;
-    flex-wrap: nowrap;      /* Prevents wrapping */
-    overflow-x: auto;       /* Allows sliding */
+    flex-wrap: nowrap;      /* Strict single line */
     align-items: center;
-    gap: 8px;
-    margin: 10px 0;
-    padding: 8px;
+    gap: 3px;
+    margin: 8px 0;
+    padding: 6px;
     background: #fff;
     border: 1px solid #eee;
     border-radius: 6px;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-#constraints div input[type="number"],
-#constraints div select {
+#constraints div input[type="number"] {
+    width: 40px;            /* Narrow for x and y coefficients */
     flex: 0 0 auto;
-    width: 65px;
 }
 
-#constraints span {
-    white-space: nowrap;
+#constraints div select {
+    width: 40px;            /* Narrow for ≤, ≥, = */
+    flex: 0 0 auto;
+    font-weight: bold;
 }
 
-button {
-    padding: 10px 18px;
-    border: none;
-    border-radius: 6px;
-    font-size: 1em;
-    cursor: pointer;
-    transition: background 0.2s;
+/* Make the constant (c) slightly wider for larger numbers */
+#constraints div input:last-of-type {
+    width: 50px;
 }
 
+/* --- Action Buttons --- */
 .action-buttons {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     margin: 20px 0;
 }
 
-.solve-btn { background: #1976d2; color: white; flex: 2; }
-.clear-btn { background: #e53935; color: white; flex: 1; }
+button {
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
 
+button:active {
+    opacity: 0.7;
+}
+
+#add-constraint-btn {
+    background: #4caf50;
+    color: white;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.solve-btn {
+    background: #1976d2;
+    color: white;
+    flex: 2;
+}
+
+.clear-btn {
+    background: #e53935;
+    color: white;
+    flex: 1;
+}
+
+/* --- Visualization --- */
 canvas {
     border: 1px solid #ddd;
     background: white;
-    margin: 24px auto;
+    margin: 20px auto;
     display: block;
     width: 100%;
-    max-width: 720px;
+    max-width: 700px;
     height: auto;
     aspect-ratio: 1 / 1;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 #result {
-    margin: 24px 0;
+    margin: 20px 0;
+    padding: 10px;
+    background: #fff;
+    border-left: 4px solid #d32f2f;
     font-weight: bold;
-    font-size: 1.15em;
-    color: #c62828;
+    font-size: 1.1em;
+    color: #d32f2f;
 }
 
-/* Custom Scrollbar for better UI on mobile */
+/* Scrollbar styling for a cleaner look */
 .objective-row::-webkit-scrollbar, 
 #constraints div::-webkit-scrollbar {
-    height: 4px;
+    height: 3px;
 }
 .objective-row::-webkit-scrollbar-thumb, 
 #constraints div::-webkit-scrollbar-thumb {
     background: #ddd;
-    border-radius: 10px;
 }
