@@ -5,13 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linear Programming Graphical Solver by Hem Joshi</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; line-height: 1.5; }
-        input[type="number"], select { padding: 6px; margin: 4px 2px; }
-        #constraints div { margin: 8px 0; }
-        canvas { border: 1px solid #ccc; margin: 20px auto; display: block; width: 100%; max-width: 700px; height: auto; aspect-ratio: 1 / 1; }
-        #result { margin: 20px 0; font-weight: bold; font-size: 1.1em; color: #d32f2f; }
-        .form-group { margin: 12px 0; }
-        button { padding: 10px 16px; cursor: pointer; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 10px; 
+            line-height: 1.5; 
+        }
+        input[type="number"], select { 
+            padding: 6px; 
+            margin: 4px 3px; 
+            min-width: 60px; 
+        }
+        #constraints div { 
+            margin: 10px 0; 
+            display: flex; 
+            flex-wrap: wrap; 
+            align-items: center; 
+            gap: 6px; 
+        }
+        canvas { 
+            border: 1px solid #ccc; 
+            margin: 20px auto; 
+            display: block; 
+            width: 100%; 
+            max-width: 700px; 
+            height: auto; 
+            aspect-ratio: 1 / 1; 
+        }
+        #result { 
+            margin: 20px 0; 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            color: #d32f2f; 
+        }
+        .form-group { 
+            margin: 14px 0; 
+        }
+        button { 
+            padding: 10px 16px; 
+            cursor: pointer; 
+        }
         .action-buttons { 
             display: flex; 
             gap: 16px; 
@@ -30,10 +63,44 @@
             border: none; 
             border-radius: 4px; 
         }
+
+        /* Objective row - try to keep on one line even on mobile */
+        .objective-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .objective-row select,
+        .objective-row input[type="number"] {
+            flex: 0 1 auto;
+            min-width: 50px;
+        }
+        .objective-row span {
+            white-space: nowrap;
+        }
+
         @media (max-width: 600px) {
-            input[type="number"], select { width: 70px; }
-            button { width: 100%; margin: 8px 0; }
-            .action-buttons { flex-direction: column; }
+            input[type="number"], select { 
+                width: 60px; 
+                min-width: 50px; 
+            }
+            .objective-row {
+                gap: 6px;
+                font-size: 0.95em;
+            }
+            .objective-row input[type="number"] {
+                width: 55px;
+            }
+            button { 
+                flex: 1 1 45%; 
+                margin: 6px 0; 
+            }
+            .action-buttons { 
+                flex-direction: row; 
+                justify-content: space-between; 
+            }
         }
     </style>
 </head>
@@ -41,23 +108,27 @@
     <h2>Linear Programming Graphical Solver by Mr. Hem Joshi</h2>
    
     <div class="form-group">
-        <label>Objective:</label><br>
-        <select id="opt_type">
-            <option>Maximize</option>
-            <option selected>Minimize</option>
-        </select>
-        Z =
-        <input id="coef_x" type="number" step="any" placeholder="coef x"> x
-        + <input id="coef_y" type="number" step="any" placeholder="coef y"> y
-        + <input id="const" type="number" step="any" placeholder="constant (optional)">
+        <label>Objective:</label>
+        <div class="objective-row">
+            <select id="opt_type">
+                <option>Maximize</option>
+                <option selected>Minimize</option>
+            </select>
+            Z =
+            <input id="coef_x" type="number" step="any" placeholder="coef x">
+            <span>x</span>
+            +
+            <input id="coef_y" type="number" step="any" placeholder="coef y">
+            <span>y</span>
+            +
+            <input id="const" type="number" step="any" placeholder="constant (optional)">
+        </div>
     </div>
    
     <div class="form-group">
-        <div class="header-with-btn">
-            <label>Constraints:</label>
-        </div>
+        <label>Constraints:</label>
         <div id="constraints"></div>
-        <button onclick="addConstraint()" style="margin-top:8px;">Add Constraint</button>
+        <button onclick="addConstraint()" style="margin-top:10px;">Add Constraint</button>
     </div>
    
     <label style="display:block; margin:12px 0;">
@@ -97,8 +168,10 @@
             const div = document.createElement('div');
             div.innerHTML = `
                 <input id="a${constraintCount}" type="number" step="any" placeholder="coef x">
-                x + <input id="b${constraintCount}" type="number" step="any" placeholder="coef y">
-                y <select id="op${constraintCount}">
+                <span>x</span> +
+                <input id="b${constraintCount}" type="number" step="any" placeholder="coef y">
+                <span>y</span>
+                <select id="op${constraintCount}">
                     <option value="<=">≤</option>
                     <option value=">=">≥</option>
                     <option value="=">=</option>
@@ -115,17 +188,9 @@
             document.getElementById('const').value = '';
             document.getElementById('opt_type').value = 'Minimize';
 
-            // Clear all constraint inputs (keep rows)
-            for (let i = 1; i <= constraintCount; i++) {
-                const aEl = document.getElementById(`a${i}`);
-                const bEl = document.getElementById(`b${i}`);
-                const dEl = document.getElementById(`d${i}`);
-                const opEl = document.getElementById(`op${i}`);
-                if (aEl) aEl.value = '';
-                if (bEl) bEl.value = '';
-                if (dEl) dEl.value = '';
-                if (opEl) opEl.value = '<=';
-            }
+            // Completely reset constraints to initial state (remove all rows)
+            document.getElementById('constraints').innerHTML = '';
+            constraintCount = 0;
 
             // Clear output
             document.getElementById('result').innerHTML = '';
@@ -139,10 +204,16 @@
                 cons.push({a: 0, b: -1, c: 0, label: 'y ≥ 0'});
             }
             for (let i = 1; i <= constraintCount; i++) {
-                const a = parseFloat(document.getElementById(`a${i}`).value) || 0;
-                const b = parseFloat(document.getElementById(`b${i}`).value) || 0;
-                const op = document.getElementById(`op${i}`).value;
-                const d = parseFloat(document.getElementById(`d${i}`).value) || 0;
+                const aEl = document.getElementById(`a${i}`);
+                const bEl = document.getElementById(`b${i}`);
+                const opEl = document.getElementById(`op${i}`);
+                const dEl = document.getElementById(`d${i}`);
+                if (!aEl) continue; // skip if removed
+
+                const a = parseFloat(aEl.value) || 0;
+                const b = parseFloat(bEl.value) || 0;
+                const op = opEl.value;
+                const d = parseFloat(dEl.value) || 0;
                 const label = `${a}x + ${b}y ${op} ${d}`;
                 if (op === '<=') cons.push({a, b, c: d, label});
                 else if (op === '>=') cons.push({a: -a, b: -b, c: -d, label});
