@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Linear Programming Graphical Solver by Hem Joshi</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <h2>Linear Programming Graphical Solver by Mr. Hem Joshi</h2>
+
+    <div class="form-group">
+        <label>Objective:</label>
+        <div class="objective-row">
+            <select id="opt_type">
+                <option>Maximize</option>
+                <option selected>Minimize</option>
+            </select>
+            <span>Z =</span>
+            <input id="coef_x" type="number" step="any" placeholder="coef x" />
+            <span>x</span>
+            <span>+</span>
+            <input id="coef_y" type="number" step="any" placeholder="coef y" />
+            <span>y</span>
+            <span>+</span>
+            <div class="const-group">
+                <input id="const" type="number" step="any" placeholder="const (opt)" />
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Constraints:</label>
+        <div id="constraints"></div>
+        <button type="button" id="add-constraint-btn">Add Constraint</button>
+    </div>
+
+    <label class="checkbox-label">
+        <input type="checkbox" id="nonneg" checked />
+        Enforce x ≥ 0, y ≥ 0
+    </label>
+
+    <div class="action-buttons">
+        <button type="button" id="solve-btn" class="solve-btn">Solve & Plot</button>
+        <button type="button" id="clear-btn" class="clear-btn">Clear All</button>
+    </div>
+
+    <canvas id="plot"></canvas>
+
+    <div id="result"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
