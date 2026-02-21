@@ -12,10 +12,28 @@
         #result { margin: 20px 0; font-weight: bold; font-size: 1.1em; color: #d32f2f; }
         .form-group { margin: 12px 0; }
         button { padding: 10px 16px; cursor: pointer; }
-        .header-with-btn { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .action-buttons { 
+            display: flex; 
+            gap: 16px; 
+            flex-wrap: wrap; 
+            margin: 16px 0; 
+        }
+        .clear-btn { 
+            background: #e53935; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+        }
+        .solve-btn { 
+            background: #1976d2; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+        }
         @media (max-width: 600px) {
             input[type="number"], select { width: 70px; }
             button { width: 100%; margin: 8px 0; }
+            .action-buttons { flex-direction: column; }
         }
     </style>
 </head>
@@ -37,9 +55,6 @@
     <div class="form-group">
         <div class="header-with-btn">
             <label>Constraints:</label>
-            <button onclick="clearAll()" style="background:#e53935; color:white; border:none; border-radius:4px; padding:6px 14px; font-size:0.95em;">
-                Clear All
-            </button>
         </div>
         <div id="constraints"></div>
         <button onclick="addConstraint()" style="margin-top:8px;">Add Constraint</button>
@@ -49,7 +64,14 @@
         <input type="checkbox" id="nonneg" checked> Enforce x ≥ 0, y ≥ 0
     </label>
    
-    <button onclick="solveLP()" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:12px 24px;">Solve & Plot</button>
+    <div class="action-buttons">
+        <button onclick="solveLP()" class="solve-btn" style="padding:12px 24px;">
+            Solve & Plot
+        </button>
+        <button onclick="clearAll()" class="clear-btn" style="padding:12px 20px;">
+            Clear All
+        </button>
+    </div>
    
     <canvas id="plot"></canvas>
    
