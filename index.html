@@ -9,12 +9,12 @@
             font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 10px; 
-            line-height: 1.5; 
+            line-height: 1.4; 
         }
         input[type="number"], select { 
-            padding: 6px; 
-            margin: 4px 3px; 
-            min-width: 60px; 
+            padding: 5px 6px; 
+            margin: 2px 3px; 
+            box-sizing: border-box;
         }
         #constraints div { 
             margin: 10px 0; 
@@ -39,15 +39,15 @@
             color: #d32f2f; 
         }
         .form-group { 
-            margin: 14px 0; 
+            margin: 12px 0; 
         }
         button { 
-            padding: 10px 16px; 
+            padding: 9px 16px; 
             cursor: pointer; 
         }
         .action-buttons { 
             display: flex; 
-            gap: 16px; 
+            gap: 12px; 
             flex-wrap: wrap; 
             margin: 16px 0; 
         }
@@ -64,42 +64,68 @@
             border-radius: 4px; 
         }
 
-        /* Objective row - try to keep on one line even on mobile */
+        /* ── Objective row ── */
         .objective-row {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 8px;
-            margin-top: 8px;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 1em;
         }
         .objective-row select,
         .objective-row input[type="number"] {
             flex: 0 1 auto;
             min-width: 50px;
+            width: 58px;           /* tighter default */
         }
         .objective-row span {
             white-space: nowrap;
+            margin: 0 2px;
+        }
+        .const-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 1;
         }
 
         @media (max-width: 600px) {
-            input[type="number"], select { 
-                width: 60px; 
-                min-width: 50px; 
-            }
             .objective-row {
-                gap: 6px;
+                gap: 4px;
+                font-size: 0.92em;
+            }
+            .objective-row select,
+            .objective-row input[type="number"] {
+                width: 52px;
+                min-width: 48px;
+                padding: 5px 4px;
+                font-size: 0.9em;
+            }
+            .objective-row span {
+                margin: 0 1px;
                 font-size: 0.95em;
             }
-            .objective-row input[type="number"] {
-                width: 55px;
+            .const-group input {
+                width: 70px;          /* give constant a bit more space */
             }
             button { 
-                flex: 1 1 45%; 
-                margin: 6px 0; 
+                flex: 1 1 48%; 
+                margin: 4px 0; 
+                padding: 10px;
             }
             .action-buttons { 
                 flex-direction: row; 
                 justify-content: space-between; 
+            }
+        }
+
+        @media (max-width: 380px) {
+            .objective-row input[type="number"] {
+                width: 48px;
+            }
+            .const-group input {
+                width: 65px;
             }
         }
     </style>
@@ -114,14 +140,16 @@
                 <option>Maximize</option>
                 <option selected>Minimize</option>
             </select>
-            Z =
+            <span>Z =</span>
             <input id="coef_x" type="number" step="any" placeholder="coef x">
             <span>x</span>
-            +
+            <span>+</span>
             <input id="coef_y" type="number" step="any" placeholder="coef y">
             <span>y</span>
-            +
-            <input id="const" type="number" step="any" placeholder="constant (optional)">
+            <span>+</span>
+            <div class="const-group">
+                <input id="const" type="number" step="any" placeholder="const (opt)">
+            </div>
         </div>
     </div>
    
@@ -136,10 +164,10 @@
     </label>
    
     <div class="action-buttons">
-        <button onclick="solveLP()" class="solve-btn" style="padding:12px 24px;">
+        <button onclick="solveLP()" class="solve-btn">
             Solve & Plot
         </button>
-        <button onclick="clearAll()" class="clear-btn" style="padding:12px 20px;">
+        <button onclick="clearAll()" class="clear-btn">
             Clear All
         </button>
     </div>
@@ -182,20 +210,22 @@
         }
 
         function clearAll() {
-            // Clear objective
             document.getElementById('coef_x').value = '';
             document.getElementById('coef_y').value = '';
             document.getElementById('const').value = '';
             document.getElementById('opt_type').value = 'Minimize';
 
-            // Completely reset constraints to initial state (remove all rows)
             document.getElementById('constraints').innerHTML = '';
             constraintCount = 0;
 
-            // Clear output
             document.getElementById('result').innerHTML = '';
             ctx.clearRect(0, 0, w, h);
         }
+
+        // ────────────────────────────────────────────────
+        // The rest of the script remains unchanged
+        // (getConstraints, pointFeasible, findCorners, solveLP)
+        // ────────────────────────────────────────────────
 
         function getConstraints() {
             const cons = [];
@@ -205,15 +235,11 @@
             }
             for (let i = 1; i <= constraintCount; i++) {
                 const aEl = document.getElementById(`a${i}`);
-                const bEl = document.getElementById(`b${i}`);
-                const opEl = document.getElementById(`op${i}`);
-                const dEl = document.getElementById(`d${i}`);
-                if (!aEl) continue; // skip if removed
-
+                if (!aEl) continue;
                 const a = parseFloat(aEl.value) || 0;
-                const b = parseFloat(bEl.value) || 0;
-                const op = opEl.value;
-                const d = parseFloat(dEl.value) || 0;
+                const b = parseFloat(document.getElementById(`b${i}`).value) || 0;
+                const op = document.getElementById(`op${i}`).value;
+                const d = parseFloat(document.getElementById(`d${i}`).value) || 0;
                 const label = `${a}x + ${b}y ${op} ${d}`;
                 if (op === '<=') cons.push({a, b, c: d, label});
                 else if (op === '>=') cons.push({a: -a, b: -b, c: -d, label});
