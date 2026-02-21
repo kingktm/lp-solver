@@ -12,6 +12,7 @@
         #result { margin: 20px 0; font-weight: bold; font-size: 1.1em; color: #d32f2f; }
         .form-group { margin: 12px 0; }
         button { padding: 10px 16px; cursor: pointer; }
+        .header-with-btn { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
         @media (max-width: 600px) {
             input[type="number"], select { width: 70px; }
             button { width: 100%; margin: 8px 0; }
@@ -20,33 +21,38 @@
 </head>
 <body>
     <h2>Linear Programming Graphical Solver by Mr. Hem Joshi</h2>
-    
+   
     <div class="form-group">
         <label>Objective:</label><br>
         <select id="opt_type">
             <option>Maximize</option>
             <option selected>Minimize</option>
         </select>
-        Z = 
+        Z =
         <input id="coef_x" type="number" step="any" placeholder="coef x"> x
         + <input id="coef_y" type="number" step="any" placeholder="coef y"> y
         + <input id="const" type="number" step="any" placeholder="constant (optional)">
     </div>
-    
+   
     <div class="form-group">
-        <label>Constraints:</label>
+        <div class="header-with-btn">
+            <label>Constraints:</label>
+            <button onclick="clearAll()" style="background:#e53935; color:white; border:none; border-radius:4px; padding:6px 14px; font-size:0.95em;">
+                Clear All
+            </button>
+        </div>
         <div id="constraints"></div>
-        <button onclick="addConstraint()">Add Constraint</button>
+        <button onclick="addConstraint()" style="margin-top:8px;">Add Constraint</button>
     </div>
-    
+   
     <label style="display:block; margin:12px 0;">
         <input type="checkbox" id="nonneg" checked> Enforce x ≥ 0, y ≥ 0
     </label>
-    
+   
     <button onclick="solveLP()" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:12px 24px;">Solve & Plot</button>
-    
+   
     <canvas id="plot"></canvas>
-    
+   
     <div id="result"></div>
 
     <script>
@@ -80,6 +86,30 @@
             document.getElementById('constraints').appendChild(div);
         }
 
+        function clearAll() {
+            // Clear objective
+            document.getElementById('coef_x').value = '';
+            document.getElementById('coef_y').value = '';
+            document.getElementById('const').value = '';
+            document.getElementById('opt_type').value = 'Minimize';
+
+            // Clear all constraint inputs (keep rows)
+            for (let i = 1; i <= constraintCount; i++) {
+                const aEl = document.getElementById(`a${i}`);
+                const bEl = document.getElementById(`b${i}`);
+                const dEl = document.getElementById(`d${i}`);
+                const opEl = document.getElementById(`op${i}`);
+                if (aEl) aEl.value = '';
+                if (bEl) bEl.value = '';
+                if (dEl) dEl.value = '';
+                if (opEl) opEl.value = '<=';
+            }
+
+            // Clear output
+            document.getElementById('result').innerHTML = '';
+            ctx.clearRect(0, 0, w, h);
+        }
+
         function getConstraints() {
             const cons = [];
             if (document.getElementById('nonneg').checked) {
@@ -109,8 +139,6 @@
         function findCorners(cons) {
             const pts = [];
             const n = cons.length;
-
-            // Intersections of constraint pairs
             for (let i = 0; i < n; i++) {
                 for (let j = i + 1; j < n; j++) {
                     const c1 = cons[i], c2 = cons[j];
@@ -121,8 +149,6 @@
                     if (pointFeasible([x, y], cons)) pts.push([x, y]);
                 }
             }
-
-            // Axis intersections
             for (const c of cons) {
                 if (Math.abs(c.a) > 1e-8) {
                     const x = c.c / c.a;
@@ -133,8 +159,6 @@
                     if (pointFeasible([0, y], cons)) pts.push([0, y]);
                 }
             }
-
-            // Deduplicate
             const unique = [];
             pts.forEach(p => {
                 const rx = Math.round(p[0] * 10000) / 10000;
@@ -151,19 +175,16 @@
                 document.getElementById('result').innerHTML = 'Add at least one constraint.';
                 return;
             }
-
             const corners = findCorners(cons);
             if (corners.length === 0) {
                 document.getElementById('result').innerHTML = 'No feasible region.';
                 ctx.clearRect(0, 0, w, h);
                 return;
             }
-
             const isMax = document.getElementById('opt_type').value === 'Maximize';
             const a = parseFloat(document.getElementById('coef_x').value) || 0;
             const b = parseFloat(document.getElementById('coef_y').value) || 0;
             const k = parseFloat(document.getElementById('const').value) || 0;
-
             let bestZ = isMax ? -Infinity : Infinity;
             let bestP = null;
             corners.forEach(([x, y]) => {
@@ -173,35 +194,26 @@
                     bestP = [x, y];
                 }
             });
-
             const xFmt = bestP[0].toFixed(2).replace(/\.?0+$/, '');
             const yFmt = bestP[1].toFixed(2).replace(/\.?0+$/, '');
             const zFmt = bestZ.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
             document.getElementById('result').innerHTML = `Optimal: x = ${xFmt}, y = ${yFmt}<br>Z = ${zFmt}`;
 
-            // ────────────────────────────────────────────────
-            //               Plotting starts here
-            // ────────────────────────────────────────────────
-
             ctx.clearRect(0, 0, w, h);
 
-            // Find bounds with padding
             let minX = Math.min(...corners.map(p => p[0]));
             let maxX = Math.max(...corners.map(p => p[0]));
             let minY = Math.min(...corners.map(p => p[1]));
             let maxY = Math.max(...corners.map(p => p[1]));
-
             const padX = (maxX - minX) * 0.15 || 1;
             const padY = (maxY - minY) * 0.15 || 1;
             minX -= padX; maxX += padX;
             minY -= padY; maxY += padY;
-
             if (isNaN(minX)) { minX = -10; maxX = 10; minY = -10; maxY = 10; }
 
             const sx = x => (x - minX) / (maxX - minX) * w;
             const sy = y => h - (y - minY) / (maxY - minY) * h;
 
-            // Axes
             ctx.strokeStyle = '#888';
             ctx.lineWidth = 1;
             if (minX <= 0 && maxX >= 0) {
@@ -211,7 +223,6 @@
                 ctx.beginPath(); ctx.moveTo(sx(minX), sy(0)); ctx.lineTo(sx(maxX), sy(0)); ctx.stroke();
             }
 
-            // Constraint lines
             cons.forEach(c => {
                 if (!c.label) return;
                 ctx.strokeStyle = '#555';
@@ -232,13 +243,10 @@
                 ctx.setLineDash([]);
             });
 
-            // Feasible region polygon
             if (corners.length >= 3) {
-                // Sort corners counterclockwise
                 const cx = corners.reduce((s, p) => s + p[0], 0) / corners.length;
                 const cy = corners.reduce((s, p) => s + p[1], 0) / corners.length;
                 corners.sort((p1, p2) => Math.atan2(p1[1]-cy, p1[0]-cx) - Math.atan2(p2[1]-cy, p2[0]-cx));
-
                 ctx.beginPath();
                 ctx.moveTo(sx(corners[0][0]), sy(corners[0][1]));
                 for (let i = 1; i < corners.length; i++) {
@@ -252,7 +260,6 @@
                 ctx.stroke();
             }
 
-            // Corner points
             ctx.fillStyle = '#000';
             ctx.font = '12px Arial';
             corners.forEach(([x, y]) => {
@@ -262,7 +269,6 @@
                 ctx.fillText(`(${x.toFixed(1)}, ${y.toFixed(1)})`, sx(x)+6, sy(y)-6);
             });
 
-            // Optimal point
             if (bestP) {
                 ctx.fillStyle = '#d32f2f';
                 ctx.beginPath();
@@ -273,7 +279,6 @@
                 ctx.stroke();
             }
 
-            // Title
             ctx.fillStyle = '#000';
             ctx.font = 'bold 16px Arial';
             ctx.fillText(`${isMax ? 'Max' : 'Min'} Z = ${zFmt}`, 20, 30);
